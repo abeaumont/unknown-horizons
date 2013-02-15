@@ -87,6 +87,8 @@ def update_all_translations():
 		for (element_name, attribute), translation in all_widgets.iteritems():
 			element = widget.findChild(name=element_name)
 			replace_attribute(element, attribute, translation)
+			#NOTE pychan + reloading font = ???
+			element.font = element.font
 		widget.adaptLayout()
 
 
@@ -112,7 +114,9 @@ def change_language(language=None):
 			trans = gettext.translation('unknown-horizons', find_available_languages()[language],
 			                            languages=[language], fallback=fallback)
 			trans.install(unicode=True, names=['ngettext',])
-		except IOError:
+		except (IOError, KeyError):
+			# KeyError can happen with a settings file written to by more than one UH
+			# installation (one that has compiled language files and one that hasn't)
 			log.debug("Configured language %s could not be loaded.", language)
 			horizons.globals.fife.set_uh_setting('Language', LANGUAGENAMES[''])
 			return change_language() # recurse

@@ -35,7 +35,7 @@ import platform
 import json
 import traceback
 import threading
-from thread import error as thread_error  # raised by threading.Lock.release
+from thread import error as ThreadError  # raised by threading.Lock.release
 import subprocess
 
 from fife import fife as fife_module
@@ -46,6 +46,7 @@ from horizons.savegamemanager import SavegameManager
 from horizons.gui import Gui
 from horizons.extscheduler import ExtScheduler
 from horizons.constants import AI, GAME, PATHS, NETWORK, SINGLEPLAYER, GAME_SPEED, GFX, VERSION
+from horizons.messaging import LoadingProgress
 from horizons.network.networkinterface import NetworkInterface
 from horizons.util.loaders.actionsetloader import ActionSetLoader
 from horizons.util.loaders.tilesetloader import TileSetLoader
@@ -110,18 +111,15 @@ def start(_command_line_arguments):
 	if debug: # also True if a specific module is logged (but not 'fife')
 		if not (command_line_arguments.debug_module
 		        and 'fife' not in command_line_arguments.debug_module):
-			horizons.globals.fife._log.lm.setLogToPrompt(True)
-		# After the next FIFE release, we should use this instead which is possible as of r3960:
-		# horizons.globals.fife._log.logToPrompt = True
+			horizons.globals.fife._log.logToPrompt = True
 
 		if command_line_arguments.debug_log_only:
 			# This is a workaround to not show fife logs in the shell even if
 			# (due to the way the fife logger works) these logs will not be
 			# redirected to the UH logfile and instead written to a file fife.log
 			# in the current directory. See #1782 for background information.
-			horizons.globals.fife._log.lm.setLogToPrompt(False)
-			horizons.globals.fife._log.lm.setLogToFile(True)
-			# same as above applies here, use property after next FIFE release
+			horizons.globals.fife._log.logToPrompt = False
+			horizons.globals.fife._log.logToFile = True
 
 	if command_line_arguments.mp_bind:
 		try:
@@ -255,14 +253,15 @@ def start(_command_line_arguments):
 		_modules.gui.multiplayermenu._join_game()
 	else: # no commandline parameter, show main screen
 
-		# initalize update checker
+		# initialize update checker
 		if not command_line_arguments.gui_test:
 			from horizons.util.checkupdates import UpdateInfo, check_for_updates, show_new_version_hint
 			update_info = UpdateInfo()
 			update_check_thread = threading.Thread(target=check_for_updates, args=(update_info,))
 			update_check_thread.start()
+
 			def update_info_handler(info):
-				if info.status == UpdateInfo.UNINITIALISED:
+				if info.status == UpdateInfo.UNINITIALIZED:
 					ExtScheduler().add_new_object(Callback(update_info_handler, info), info)
 				elif info.status == UpdateInfo.READY:
 					show_new_version_hint(_modules.gui, info)
@@ -303,6 +302,7 @@ def start_singleplayer(options):
 	"""Starts a singleplayer game."""
 	_modules.gui.show_loading_screen()
 
+	LoadingProgress.broadcast(None, 'load_objects')
 	global preloading
 	preload_game_join(preloading)
 
@@ -571,5 +571,5 @@ def preload_game_join(preloading):
 	else:
 		try:
 			lock.release()
-		except thread_error:
+		except ThreadError:
 			pass # due to timing issues, the lock might be released already
