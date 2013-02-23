@@ -32,7 +32,7 @@ from horizons.gui.tabs.tabinterface import TabInterface
 from horizons.gui.util import load_uh_widget
 from horizons.gui.widgets.imagebutton import OkButton, CancelButton
 from horizons.gui.widgets.minimap import Minimap
-from horizons.gui.windows import WindowManager, Window
+from horizons.gui.windows import WindowManager, Dialog
 from horizons.util.lastactiveplayersettlementmanager import LastActivePlayerSettlementManager
 from horizons.util.living import LivingObject, livingProperty
 from horizons.util.loaders.tilesetloader import TileSetLoader
@@ -232,38 +232,29 @@ class SettingsTab(TabInterface):
 		b.up_image = images['box_highlighted']
 
 
-class SaveMapDialog(Window):
+class SaveMapDialog(Dialog):
 	"""Shows a dialog where the user can set the name of the saved map."""
+	focus = 'map_name'
 
 	def __init__(self, session, windows):
 		super(SaveMapDialog, self).__init__(windows)
-
 		self._session = session
-		self._widget = load_uh_widget('save_map.xml')
 
-		name = self._widget.findChild(name='map_name')
-		name.text = u''
-		name.capture(self._do_save)
-
-		events = {
-			OkButton.DEFAULT_NAME: self._do_save,
-			CancelButton.DEFAULT_NAME: self._windows.close,
+	def prepare(self):
+		self._gui = load_uh_widget('save_map.xml')
+		self.return_events = {
+			OkButton.DEFAULT_NAME: True,
+			CancelButton.DEFAULT_NAME: False,
 		}
-		self._widget.mapEvents(events)
 
-	def show(self):
-		self._widget.show()
-		self._widget.findChild(name='map_name').requestFocus()
+	def act(self, do_save):
+		if not do_save:
+			return
 
-	def hide(self):
-		self._widget.hide()
-
-	def _do_save(self):
-		name = self._widget.collectData('map_name')
+		name = self._gui.collectData('map_name')
 		regex = r'[a-zA-Z0-9_-]+'
 		if re.match('^' + regex + '$', name):
 			self._session.save(name)
-			self._windows.close()
 		else:
 			#xgettext:python-format
 			message = _('Valid map names are in the following form: {expression}').format(expression=regex)
