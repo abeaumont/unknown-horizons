@@ -35,7 +35,7 @@ class SettingsDialog(object):
 		horizons.globals.fife.show_settings()
 
 		# Patch original dialog
-		widget = horizons.globals.fife._setting.OptionsDlg
+		widget = horizons.globals.fife._setting._optionsDialog
 		if not hasattr(widget, '__patched__'):
 			# replace hide method so we take control over how the dialog
 			# is hidden
